@@ -21,10 +21,10 @@ library(tidyverse)
 Then, we need to install the package `nycflights13`. The package contains the following five datasets: _airlines_, _airports_, _planes_, _weather_, and _flights_. For explanations on the data use `help(airlines)`, `help(airports)`, etc. To make the data visible in the global environment we need to assign them to some variable.
 
 ```{r}
-airlines <- nycflights::airlines 
-airports <- nycflights::airports
-planes <- nycflights::planes
-weather <- nycflights::weather
+airlines <- nycflights13::airlines 
+airports <- nycflights13::airports
+planes <- nycflights13::planes
+weather <- nycflights13::weather
 flights <- nycflights13::flights
 ```
 
@@ -32,23 +32,74 @@ flights <- nycflights13::flights
 ## Airlines
 - Inspect the airlines data and print the first 5 rows.
 
+```{r}
+dim(airlines)
+str(airlines)
+head(airlines, 5)
+```
+
 
 ## Airports 
 - Inspect the airports data and print the first rows. 
-- The variabe `alt` represents the airport's altitude in feet. Replace `alt` by the corresponding altitude in meters (meter = feet * 3.28084). Then filter for the 5 airports with the highest altitude
+- The variabe `alt` represents the airport's altitude in feet. Replace `alt` by the corresponding altitude in meters (meter = feet / 3.28084). Then filter for the 5 airports with the highest altitude
 - Filter for all airports which are located at an altitude lower than sea level
+```{r}
+dim(airports)
+str(airports)
+head(airports)
+airports <- airports %>%
+  mutate(alt = alt / 3,28084)
+airports%>%
+  arrange(desc(alt))%>%
+  head(5)
+airports%>%
+  filter(alt<0)
+```
+
+
 
 ## Weather
 - Inspect the data and print the first rows. 
 - Does the data only cover New York or also the weather at destination airports? 
 - Change the units to European standards:  
   * Temperature (`temp`) and dew point (`dewp`): Celsius = (Fahrenheit - 32) * 5 / 9 
-  * Visibility (`visib`): kilometer = miles / 1.60934
-  * Wind speed (`wind_speed`): kilometer/hour = (miles/hour) /1.60934
+  * Visibility (`visib`): kilometer = miles * 1.60934
+  * Wind speed (`wind_speed`): kilometer/hour = (miles/hour) * 1.60934
   * Precipitation (`precip`): millimeter = inches * 20.54
 - What was the 2013 average of `temp`, `wind_speed`, and `visib` at the JFK airport?
 - What was the *monthly* average of `temp`, `wind_speed`, and `visib` at the JFK airport?
 - What was the minimum `temp`, the maximum `temp`, and the total amount of `precip` at each of the 3 airports in December 2013? 
+
+```{r}
+dim(weather)
+str(weather)
+summary(weather)
+weather%>%distinct(origin)
+head(weather)
+weather <- weather%>%
+  mutate(dewp = (dewp - 32)*5/9, temp = (temp - 32)*5/9)
+weather <-weather%>%
+  mutate(visib = visib * 1.60934, wind_speed = wind_speed * 1.60934)
+weather <-weather%>%
+  mutate(precip = precip*20.54)
+
+shortname <- as.character(airports[grep("Kennedy", airports$name), 1])  #unnötige Spielerei...das Kürzel "JFK" ist nicht kompliziert zu finden
+weather%>%
+  select(origin, year, temp, wind_speed, visib)%>%
+  filter(origin == shortname, year == 2013)%>%                          #unnötig 2013 anzugeben...Datensatz enthält nur 2013er Daten
+  summarise("Avg Temp in °C" = mean(temp), "Avg Wind Speed in km/h" = mean(wind_speed, na.rm = TRUE), "Avg Vibility in km" = mean(visib))
+
+airports%>%
+select(Airport = name, Shortname = faa)%>%
+right_join(weather%>%
+  group_by(Shortname = origin)%>%
+  filter(year == 2013, month==12)%>%
+  summarise("Min Temp"=min(temp), "Max Temp"=max(temp), "Total Precip"=sum(precip)),  by = "Shortname")
+
+
+
+```
+
 
 ## Planes
 - Inspect the planes data and print the first 5 rows.
