@@ -106,10 +106,39 @@ right_join(weather%>%
 - Count the numer of planes per `manufacturer` and sort in descending order? 
 - Calculate per manufacturer: 1. number of planes, 2. average number of `seats`, 3. average number of `engines`, 4. average `year` when the planes where manufactured. And again order in descending order of the number of planes
 
+```{r}
+dim(planes)
+str(planes)
+summary(planes)
+head(planes, 5)
+
+planes$manufacturer<-planes$manufacturer%>%
+  str_replace_all("AIRBUS INDUSTRIE", "AIRBUS")%>%
+  str_replace_all("MCDONNELL DOUGLAS AIRCRAFT CO", "MCDONNELL DOUGLAS")%>%
+  str_replace_all("MCDONNELL DOUGLAS CORPORATION", "MCDONNELL DOUGLAS")
+
+planes%>%
+  group_by(manufacturer)%>%
+  summarise(models = n_distinct(tailnum))%>%
+  arrange(desc(models))
+
+planes%>%
+  group_by(manufacturer)%>%
+  summarise("No. of planes"=n_distinct(tailnum), "Avg No. of seats"=mean(seats), "Avg. No. of engines"=mean(engines), "Avg. year of manufacture"=as.integer(mean(year, na.rm = TRUE)))%>%
+  arrange(desc(`No. of planes`))
+
+```
+
+
 ## Flights
 - Inspect the flights data and print the first 5 rows.
 - Count the total number of flights and the average delay during the whole year per `hour` of departure.
 - Count the number of flights by destionation airport (`dest`) and arrange them in descending order.
+
+```{r}
+
+```
+
 
 # Join datasets 
 Join the five data sets into one large data set. To better understand the relationship between them, study the file _img/table_realtionships.PNG_ (or alternatively knit this Rmd file.) 
