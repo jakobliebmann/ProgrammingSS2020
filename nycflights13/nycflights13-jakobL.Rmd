@@ -136,7 +136,22 @@ planes%>%
 - Count the number of flights by destionation airport (`dest`) and arrange them in descending order.
 
 ```{r}
+str(flights)
+summary(flights)
+flights[1:5, ]
 
+flights%>%
+  group_by(hour)%>%
+  summarise("No. of flights"=n_distinct(flight), "Avg. delay of arrival"=mean(arr_delay, na.rm = TRUE))
+
+airports%>%
+  select(Airport = name, Shortname = faa)%>%
+  right_join(
+    flights%>%
+      group_by(Shortname=dest)%>%
+      summarise("No. of distinct flights"=n_distinct(flight))%>%
+      arrange(desc(`No. of distinct flights`)),
+  by = "Shortname")
 ```
 
 
