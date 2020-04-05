@@ -48,7 +48,7 @@ dim(airports)
 str(airports)
 head(airports)
 airports <- airports %>%
-  mutate(alt = alt / 3,28084)
+  mutate(alt = alt / 3.28084)
 airports%>%
   arrange(desc(alt))%>%
   head(5)
@@ -160,6 +160,31 @@ Join the five data sets into one large data set. To better understand the relati
 
 ![](img/table_relationships.PNG){width=70%}
 
+```{r}
+# Joining arrival-airports (arr.) and destination-airports (dest.) with flights and adding to df
+df <- airports %>%
+  rename_all(function(x){paste0("origin.", x)})%>%
+  right_join(flights, by=c("origin.faa"="origin"))%>%
+  left_join(airports %>%
+      rename_all(function(x){paste0("dest.", x)}), by = c("dest"="dest.faa"))%>%
+  rename("origin"="origin.faa")
+  
+# Adding planes to df
+df<-df %>% 
+  left_join(planes%>%rename("manufactured"="year"), by="tailnum")
+
+#Adding airlines to df
+df<-df%>%
+  left_join(airlines%>%rename("airline"="name"), by="carrier")
+
+#Adding weather of origin Airport to df
+df<-df%>%mutate(origin.hour = as.integer(dep_time/100))%>%
+  left_join(weather%>%rename_all(function(x){paste0("weather.", x)}), by = c("origin" = "weather.origin", "year"="weather.year", "month"="weather.month", "day"="weather.day", "origin.hour"="weather.hour"))
+
+#Adding weather of destination Airport to df - useless action, because there is no data available
+#df<-df%>%mutate(dest.hour = as.integer(arr_time/100))%>%
+#  left_join(weather%>%rename_all(function(x){paste0("weather.dest.", x)}), by = c("dest" = "weather.dest.origin", "year"="weather.dest.year", #"month"="weather.dest.month", "day"="weather.dest.day", "dest.hour"="weather.dest.hour"))
+```
 
 # Freely explore
 Some questions for inspiration:
