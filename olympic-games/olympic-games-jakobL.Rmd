@@ -16,6 +16,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 # Read in the participants.txt
+
 ```{r}
 library(tidyverse)
 participants <- read_csv("participants.csv")
@@ -37,6 +38,19 @@ str(participants)
 # Counting participants
 -	Display the 10 countries with the highest number of participants.
 -	Calculate the number of participants from Germany, including West Germany and East Germany. 
+
+```{r}
+participants%>%
+  group_by(country)%>%
+  summarise(athletes=n_distinct(athlete))%>%
+  arrange(desc(athletes))%>%
+  head(10)
+
+participants%>%
+  filter(str_detect(country, "Germany"))%>%
+  summarise(n_distinct(athlete))
+```
+
 
 # Body mass index
 -	Add a column bmi that contains the athlete's body mass index. The body mass index is defined as weight / height^2 measured in kilogram / meter^2 
