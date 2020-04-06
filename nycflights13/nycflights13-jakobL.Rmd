@@ -193,3 +193,26 @@ Some questions for inspiration:
 - What is the average flight distance and the average delay by airline
 - What's the average delay by airline? (But note that this will be strongly correlated with flight distance, 
 - Is bad weather (precipitation, low visibility, low temperatures) related to departure delay? 
+
+```{r}
+df%>%
+  group_by(seats)%>%
+  summarise(delay=mean(dep_delay))%>%
+  drop_na()%>%
+  ggplot(aes(seats,delay))+
+  geom_line(size = 1)
+
+df%>%
+  group_by(airline)%>%
+  summarise("Avg. distance"=mean(distance), "Avg. delay"=mean(arr_delay, na.rm = TRUE), "Avg. seats"=mean(seats, na.rm = TRUE))%>%
+  ggplot()+
+    geom_point(aes(x=`Avg. distance`, y=`Avg. delay`, color=`Avg. seats`), size = 2)+
+    ggrepel::geom_text_repel(aes(x=`Avg. distance`, y=`Avg. delay`, label=airline,))+
+    theme_classic()
+
+#regression: Is bad weather (precipitation, low visibility, low temperatures) related to departure delay?
+lrm <- dep_delay ~ weather.precip + weather.visib + weather.temp
+regression <- lm(lrm, data=df)
+summary(regression)
+```
+
