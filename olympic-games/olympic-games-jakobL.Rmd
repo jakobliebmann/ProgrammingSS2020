@@ -182,6 +182,19 @@ df%>%
 -	Create a table that shows for each sport the proportions of men and women among the gold medal winners
 -	In the history of Olympic games, which sports have been exclusively reserved for men and women, respectively.
 
+```{r}
+df%>%
+  filter(medal=="Gold")%>%
+  group_by(sport)%>%
+  summarise(males=sum(sex=="M"), females=sum(sex=="F"), females/males)
+
+df%>%
+  group_by(sport)%>%
+  summarise(males=sum(sex=="M"), females=sum(sex=="F"))%>%
+  filter(males == 0 | females == 0)
+```
+
+
 # Special athletes
 -	Display all athletes that have won a gold medal both at summer and winter Olympic games.
 
