@@ -53,8 +53,7 @@ participants%>%
 
 
 # Body mass index
--	Add a column bmi that contains the athlete's body mass index. The body mass index is defined as weight / height^2 measured in kilogram / meter^2 
--	Calculate the minimum, average, and maximum BMI
+-	Add a column bmi that contains the athlete's body mass index. The body mass index is defined as weight / height^2 measured in kilogram / meter^2 -	Calculate the minimum, average, and maximum BMI
 -	How many participants of the sport Rhythmic Gymnastics are at least severely underweight? Use the BMI table below to answer this question.
 -	What percentage of the participants of the sport Weightlifting are at least severely obese? Use the BMI table below to answer this question.
 
@@ -71,6 +70,36 @@ participants%>%
 | Obese Class   IV (Morbidly obese)       | 45           | 50         |
 | Obese Class V   (Super obese)           | 50           | 60         |
 | Obese   Class VI (Hyper obese)          | 60           |            |
+
+```{r}
+participants<-participants%>%
+  mutate(bmi = weight/(height/100)^2)
+
+participants%>%
+  distinct(game, athlete, .keep_all = T)%>%
+  summarise(min(bmi, na.rm = T), mean(bmi, na.rm = T), max(bmi, na.rm = T))
+
+participants%>%
+  filter(bmi < 10 | bmi > 60)
+
+participants%>%
+  distinct(athlete, .keep_all = T)%>%
+  filter(sport=="Rhythmic Gymnastics", bmi<16)%>%
+  summarise(n())
+
+all_athletes<-as.integer(participants%>%
+  distinct(athlete, .keep_all = T)%>%
+  filter(sport=="Weightlifting")%>%
+  summarise(n()))
+
+severely_obese<-as.integer(participants%>%
+  distinct(athlete, .keep_all = T)%>%
+  filter(sport=="Weightlifting", bmi>=35)%>%
+  summarise(n()))
+
+print(severely_obese/all_athletes*100)
+```
+
 
 
 # Joining data
