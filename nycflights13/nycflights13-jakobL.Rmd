@@ -21,10 +21,10 @@ library(tidyverse)
 Then, we need to install the package `nycflights13`. The package contains the following five datasets: _airlines_, _airports_, _planes_, _weather_, and _flights_. For explanations on the data use `help(airlines)`, `help(airports)`, etc. To make the data visible in the global environment we need to assign them to some variable.
 
 ```{r}
-airlines <- nycflights::airlines 
-airports <- nycflights::airports
-planes <- nycflights::planes
-weather <- nycflights::weather
+airlines <- nycflights13::airlines 
+airports <- nycflights13::airports
+planes <- nycflights13::planes
+weather <- nycflights13::weather
 flights <- nycflights13::flights
 ```
 
@@ -32,39 +32,159 @@ flights <- nycflights13::flights
 ## Airlines
 - Inspect the airlines data and print the first 5 rows.
 
+```{r}
+dim(airlines)
+str(airlines)
+head(airlines, 5)
+```
+
 
 ## Airports 
 - Inspect the airports data and print the first rows. 
-- The variabe `alt` represents the airport's altitude in feet. Replace `alt` by the corresponding altitude in meters (meter = feet * 3.28084). Then filter for the 5 airports with the highest altitude
+- The variabe `alt` represents the airport's altitude in feet. Replace `alt` by the corresponding altitude in meters (meter = feet / 3.28084). Then filter for the 5 airports with the highest altitude
 - Filter for all airports which are located at an altitude lower than sea level
+```{r}
+dim(airports)
+str(airports)
+head(airports)
+airports <- airports %>%
+  mutate(alt = alt / 3.28084)
+airports%>%
+  arrange(desc(alt))%>%
+  head(5)
+airports%>%
+  filter(alt<0)
+```
+
+
 
 ## Weather
 - Inspect the data and print the first rows. 
 - Does the data only cover New York or also the weather at destination airports? 
 - Change the units to European standards:  
   * Temperature (`temp`) and dew point (`dewp`): Celsius = (Fahrenheit - 32) * 5 / 9 
-  * Visibility (`visib`): kilometer = miles / 1.60934
-  * Wind speed (`wind_speed`): kilometer/hour = (miles/hour) /1.60934
+  * Visibility (`visib`): kilometer = miles * 1.60934
+  * Wind speed (`wind_speed`): kilometer/hour = (miles/hour) * 1.60934
   * Precipitation (`precip`): millimeter = inches * 20.54
 - What was the 2013 average of `temp`, `wind_speed`, and `visib` at the JFK airport?
 - What was the *monthly* average of `temp`, `wind_speed`, and `visib` at the JFK airport?
 - What was the minimum `temp`, the maximum `temp`, and the total amount of `precip` at each of the 3 airports in December 2013? 
+
+```{r}
+dim(weather)
+str(weather)
+summary(weather)
+weather%>%distinct(origin)
+head(weather)
+weather <- weather%>%
+  mutate(dewp = (dewp - 32)*5/9, temp = (temp - 32)*5/9)
+weather <-weather%>%
+  mutate(visib = visib * 1.60934, wind_speed = wind_speed * 1.60934)
+weather <-weather%>%
+  mutate(precip = precip*20.54)
+
+shortname <- as.character(airports[grep("Kennedy", airports$name), 1])  #unnötige Spielerei...das Kürzel "JFK" ist nicht kompliziert zu finden
+weather%>%
+  select(origin, year, temp, wind_speed, visib)%>%
+  filter(origin == shortname, year == 2013)%>%                          #unnötig 2013 anzugeben...Datensatz enthält nur 2013er Daten
+  summarise("Avg Temp in °C" = mean(temp), "Avg Wind Speed in km/h" = mean(wind_speed, na.rm = TRUE), "Avg Vibility in km" = mean(visib))
+
+airports%>%
+select(Airport = name, Shortname = faa)%>%
+right_join(weather%>%
+  group_by(Shortname = origin)%>%
+  filter(year == 2013, month==12)%>%
+  summarise("Min Temp"=min(temp), "Max Temp"=max(temp), "Total Precip"=sum(precip)),  by = "Shortname")
+
+
+
+```
+
 
 ## Planes
 - Inspect the planes data and print the first 5 rows.
 - Count the numer of planes per `manufacturer` and sort in descending order? 
 - Calculate per manufacturer: 1. number of planes, 2. average number of `seats`, 3. average number of `engines`, 4. average `year` when the planes where manufactured. And again order in descending order of the number of planes
 
+```{r}
+dim(planes)
+str(planes)
+summary(planes)
+head(planes, 5)
+
+planes$manufacturer<-planes$manufacturer%>%
+  str_replace_all("AIRBUS INDUSTRIE", "AIRBUS")%>%
+  str_replace_all("MCDONNELL DOUGLAS AIRCRAFT CO", "MCDONNELL DOUGLAS")%>%
+  str_replace_all("MCDONNELL DOUGLAS CORPORATION", "MCDONNELL DOUGLAS")
+
+planes%>%
+  group_by(manufacturer)%>%
+  summarise(models = n_distinct(tailnum))%>%
+  arrange(desc(models))
+
+planes%>%
+  group_by(manufacturer)%>%
+  summarise("No. of planes"=n_distinct(tailnum), "Avg No. of seats"=mean(seats), "Avg. No. of engines"=mean(engines), "Avg. year of manufacture"=as.integer(mean(year, na.rm = TRUE)))%>%
+  arrange(desc(`No. of planes`))
+
+```
+
+
 ## Flights
 - Inspect the flights data and print the first 5 rows.
 - Count the total number of flights and the average delay during the whole year per `hour` of departure.
 - Count the number of flights by destionation airport (`dest`) and arrange them in descending order.
+
+```{r}
+str(flights)
+summary(flights)
+flights[1:5, ]
+
+flights%>%
+  group_by(hour)%>%
+  summarise("No. of flights"=n_distinct(flight), "Avg. delay of arrival"=mean(arr_delay, na.rm = TRUE))
+
+airports%>%
+  select(Airport = name, Shortname = faa)%>%
+  right_join(
+    flights%>%
+      group_by(Shortname=dest)%>%
+      summarise("No. of distinct flights"=n_distinct(flight))%>%
+      arrange(desc(`No. of distinct flights`)),
+  by = "Shortname")
+```
+
 
 # Join datasets 
 Join the five data sets into one large data set. To better understand the relationship between them, study the file _img/table_realtionships.PNG_ (or alternatively knit this Rmd file.) 
 
 ![](img/table_relationships.PNG){width=70%}
 
+```{r}
+# Joining arrival-airports (arr.) and destination-airports (dest.) with flights and adding to df
+df <- airports %>%
+  rename_all(function(x){paste0("origin.", x)})%>%
+  right_join(flights, by=c("origin.faa"="origin"))%>%
+  left_join(airports %>%
+      rename_all(function(x){paste0("dest.", x)}), by = c("dest"="dest.faa"))%>%
+  rename("origin"="origin.faa")
+  
+# Adding planes to df
+df<-df %>% 
+  left_join(planes%>%rename("manufactured"="year"), by="tailnum")
+
+#Adding airlines to df
+df<-df%>%
+  left_join(airlines%>%rename("airline"="name"), by="carrier")
+
+#Adding weather of origin Airport to df
+df<-df%>%mutate(origin.hour = as.integer(dep_time/100))%>%
+  left_join(weather%>%rename_all(function(x){paste0("weather.", x)}), by = c("origin" = "weather.origin", "year"="weather.year", "month"="weather.month", "day"="weather.day", "origin.hour"="weather.hour"))
+
+#Adding weather of destination Airport to df - useless action, because there is no data available
+#df<-df%>%mutate(dest.hour = as.integer(arr_time/100))%>%
+#  left_join(weather%>%rename_all(function(x){paste0("weather.dest.", x)}), by = c("dest" = "weather.dest.origin", "year"="weather.dest.year", #"month"="weather.dest.month", "day"="weather.dest.day", "dest.hour"="weather.dest.hour"))
+```
 
 # Freely explore
 Some questions for inspiration:
@@ -73,3 +193,26 @@ Some questions for inspiration:
 - What is the average flight distance and the average delay by airline
 - What's the average delay by airline? (But note that this will be strongly correlated with flight distance, 
 - Is bad weather (precipitation, low visibility, low temperatures) related to departure delay? 
+
+```{r}
+df%>%
+  group_by(seats)%>%
+  summarise(delay=mean(dep_delay))%>%
+  drop_na()%>%
+  ggplot(aes(seats,delay))+
+  geom_line(size = 1)
+
+df%>%
+  group_by(airline)%>%
+  summarise("Avg. distance"=mean(distance), "Avg. delay"=mean(arr_delay, na.rm = TRUE), "Avg. seats"=mean(seats, na.rm = TRUE))%>%
+  ggplot()+
+    geom_point(aes(x=`Avg. distance`, y=`Avg. delay`, color=`Avg. seats`), size = 2)+
+    ggrepel::geom_text_repel(aes(x=`Avg. distance`, y=`Avg. delay`, label=airline,))+
+    theme_classic()
+
+#regression: Is bad weather (precipitation, low visibility, low temperatures) related to departure delay?
+lrm <- dep_delay ~ weather.precip + weather.visib + weather.temp
+regression <- lm(lrm, data=df)
+summary(regression)
+```
+
