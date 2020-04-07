@@ -100,11 +100,19 @@ severely_obese<-as.integer(participants%>%
 print(severely_obese/all_athletes*100)
 ```
 
-
-
 # Joining data
 -	Read in athletes.xlsx and medallists.txt
 -	Join participants, athletes, and medalists into one large data frame. Make the join in such a way that we do not lose information contained in the participants data. 
+
+```{r}
+athletes<- readxl::read_excel("athletes.xlsx")
+medallists <- read_delim("medallists.txt", ";", escape_double = FALSE, trim_ws = TRUE)
+df <- participants%>%
+  left_join(athletes, by = "athlete")
+df<-df%>%
+  left_join(medallists, by = c("game", "discipline", "athlete"))
+```
+
 
 # Medal table	
 -	Create the all-time Olympic Games medal table and display the first 10 entries. Medal tables are sorted from best to worst (sort first the number of golds, then silver, then bronze). The table should have the following columns. 
@@ -116,6 +124,29 @@ print(severely_obese/all_athletes*100)
 
 |athlete | country | Gold | Silver | Bronze |
 |--------|---------|------|--------|--------|
+
+```{r}
+country_medal_table <- df%>%
+  group_by(country, medal)%>%
+  summarise(amount=n())%>%
+  pivot_wider(names_from = medal, values_from = amount)%>%
+  mutate(`NA`=NULL)%>%
+  drop_na()%>%
+  arrange(desc(Gold), desc(Silver), desc(Bronze))
+
+head(country_medal_table[c(1,3,4,2)],10)
+
+athlete_medal_table <- df%>%
+  group_by(athlete, medal, country)%>%
+  summarise(amount=n())%>%
+  pivot_wider(names_from = medal, values_from = amount)%>%
+  mutate(`NA`=NULL)%>%
+  drop_na()%>%
+  arrange(desc(Gold), desc(Silver), desc(Bronze))
+
+head(athlete_medal_table[c(1,2,3,5,4)],10)
+```
+
 
 # Athlete’s age
 -	Display the youngest and the oldest participant together with information on the Olympic games and the sports and disciplines at which they participated.
