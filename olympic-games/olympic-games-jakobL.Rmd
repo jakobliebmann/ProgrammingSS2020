@@ -152,6 +152,32 @@ head(athlete_medal_table[c(1,2,3,5,4)],10)
 -	Display the youngest and the oldest participant together with information on the Olympic games and the sports and disciplines at which they participated.
 -	Calculate the minimum, average, and maximum age of medal winners per sport. Display the 5 sports with the highest and lowest average ages, respectively.
 
+```{r}
+df%>%
+  filter(!str_detect(age, "-"))%>%
+  filter(age==min(age)|age==max(age))%>%
+  select(game, sport, discipline, athlete, age, country)
+
+df$age<-as.numeric(df$age)
+
+df%>%
+  filter(!is.na(medal), !str_detect(age, "-"))%>%
+  summarise(min(age), mean(age), max(age))
+
+df%>%
+  group_by(sport)%>%
+  summarise("Avg. age"=mean(age, na.rm = T))%>%
+  arrange(desc(`Avg. age`))%>%
+  head(5)
+
+df%>%
+  group_by(sport)%>%
+  summarise("Avg. age"=mean(age, na.rm = T))%>%
+  arrange(`Avg. age`)%>%
+  head(5)  
+```
+
+
 # Athlete’s sex
 -	Create a table that shows for each sport the proportions of men and women among the gold medal winners
 -	In the history of Olympic games, which sports have been exclusively reserved for men and women, respectively.
