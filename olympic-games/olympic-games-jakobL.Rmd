@@ -198,3 +198,19 @@ df%>%
 # Special athletes
 -	Display all athletes that have won a gold medal both at summer and winter Olympic games.
 
+```{r}
+df_special<-df
+
+df_special$game <-df_special$game%>%
+  str_replace("\\d\\d\\d\\d Summer", "summer")%>%
+  str_replace("\\d\\d\\d\\d Winter", "winter")
+
+df_special%>%
+  filter(medal=="Gold")%>%
+  select(game, athlete)%>%
+  pivot_wider(names_from = game, values_from = game)%>%
+  drop_na()
+
+  
+```
+
