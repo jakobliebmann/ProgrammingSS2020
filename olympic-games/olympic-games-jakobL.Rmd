@@ -106,7 +106,7 @@ print(severely_obese/all_athletes*100)
 
 ```{r}
 athletes<- readxl::read_excel("athletes.xlsx")
-medallists <- read_delim("medallists.txt", ";", escape_double = FALSE, trim_ws = TRUE)
+medallists <- read_delim("medallists.txt", ";")
 df <- participants%>%
   left_join(athletes, by = "athlete")
 df<-df%>%
@@ -132,9 +132,11 @@ country_medal_table <- df%>%
   pivot_wider(names_from = medal, values_from = amount)%>%
   mutate(`NA`=NULL)%>%
   drop_na()%>%
-  arrange(desc(Gold), desc(Silver), desc(Bronze))
+  arrange(-Gold, -Silver, -Bronze)
 
-head(country_medal_table[c(1,3,4,2)],10)
+country_medal_table%>%
+  select(country, Gold, Silver, Bronze)%>%
+  head(10)
 
 athlete_medal_table <- df%>%
   group_by(athlete, medal, country)%>%
@@ -142,9 +144,11 @@ athlete_medal_table <- df%>%
   pivot_wider(names_from = medal, values_from = amount)%>%
   mutate(`NA`=NULL)%>%
   drop_na()%>%
-  arrange(desc(Gold), desc(Silver), desc(Bronze))
+  arrange(-Gold, -Silver, -Bronze)
 
-head(athlete_medal_table[c(1,2,3,5,4)],10)
+athlete_medal_table%>%
+  select(athlete, country, Gold, Silver, Bronze)%>%
+  head(10)
 ```
 
 
@@ -199,18 +203,36 @@ df%>%
 -	Display all athletes that have won a gold medal both at summer and winter Olympic games.
 
 ```{r}
+#original
+#========
 df_special<-df
-
 df_special$game <-df_special$game%>%
   str_replace("\\d\\d\\d\\d Summer", "summer")%>%
   str_replace("\\d\\d\\d\\d Winter", "winter")
 
-df_special%>%
+df_special%>%  
   filter(medal=="Gold")%>%
   select(game, athlete)%>%
   pivot_wider(names_from = game, values_from = game)%>%
   drop_na()
 
-  
+#alternative 1
+#=============
+df%>%
+  mutate(game = str_replace(game, "\\d\\d\\d\\d Summer", "summer"))%>%
+  mutate(game = str_replace(game, "\\d\\d\\d\\d Winter", "winter"))%>%
+  filter(medal=="Gold")%>%
+  select(game, athlete)%>%
+  pivot_wider(names_from = game, values_from = 1)%>%
+  drop_na()
+
+#alternative 2
+#=============
+df%>%
+  separate(game, into=c("year", "season"), sep = " ")%>%
+  filter(medal=="Gold")%>%
+  select(season, athlete)%>%
+  pivot_wider(names_from = season, values_from = 1)%>%
+  drop_na()
 ```
 
