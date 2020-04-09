@@ -78,7 +78,7 @@ for (country in countrylist) {
 # Multiple loops
 ```{r}
 library(lubridate)
-datelist <- seq.Date(from = as.Date("2020/1/29"), to = as.Date("2020/2/3"), by = "day")
+datelist <- seq.Date(from = as.Date("2020/1/30"), to = as.Date("2020/2/1"), by = "day")
 multipledownload<-tibble()
 for (country in 1:length(countrylist)){
   for (date in 1:length(datelist)){
@@ -92,5 +92,11 @@ for (country in 1:length(countrylist)){
     }
   }
 
+```
+
+# Map Approach
+```{r}
+countrydate<-expand.grid(country=countrylist, date=datelist)
+multipledownload <- map2_df(countrydate$country, countrydate$date, getcharts)
 ```
 
