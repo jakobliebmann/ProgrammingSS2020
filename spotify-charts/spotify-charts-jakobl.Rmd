@@ -62,3 +62,16 @@ mappeddownload<-countrylist%>%
 mappeddownload[199:202, ]
 ```
 
+# For loop
+```{r}
+loopeddownload <- tibble()
+for (country in countrylist) {
+  print(paste0("Getting data for: ",country))
+  ifelse(length(loopeddownload)==0,
+          loopeddownload<-getcharts(country),
+          loopeddownload<-loopeddownload %>% add_row(getcharts(country)))
+}
+
+# Comment: the loop is more intuitive, the mapping easier to implement
+```
+
