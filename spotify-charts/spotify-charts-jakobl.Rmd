@@ -39,13 +39,13 @@ head(download)
 
 # Write a function
 ```{r}
-getcharts <- function(country)
+getcharts <- function(country, date = "2020-04-05")
 {
-  url<- paste0("https://spotifycharts.com/regional/", country, "/daily/2020-04-05/download")
+  url<- paste0("https://spotifycharts.com/regional/", country, "/daily/", date, "/download")
   print(paste0("Daten werden bezogen: ",url))
   df <- read_csv(url, col_types = cols(Position = col_integer(), Streams = col_integer()), skip = 1)
   df<- df%>%
-    mutate(country = country)
+    mutate(country = country, date = date)
   return(df)
   }
 returndownload<-getcharts("de")
@@ -73,5 +73,24 @@ for (country in countrylist) {
 }
 
 # Comment: the loop is more intuitive, the mapping easier to implement
+```
+
+# Multiple loops
+```{r}
+library(lubridate)
+datelist <- seq.Date(from = as.Date("2020/1/29"), to = as.Date("2020/2/3"), by = "day")
+multipledownload<-tibble()
+for (country in 1:length(countrylist)){
+  for (date in 1:length(datelist)){
+    print(paste0("getting data from country:  ", countrylist[country], "  from date:  ", datelist[date]))
+    ifelse(
+          length(multipledownload)==0,
+          multipledownload<-getcharts(countrylist[country], datelist[date]),
+          multipledownload<-multipledownload%>%add_row(getcharts(countrylist[country], datelist[date]))
+          )
+    
+    }
+  }
+
 ```
 
