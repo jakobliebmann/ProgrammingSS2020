@@ -28,7 +28,7 @@ library(tidyverse)
 download <- read_csv("https://spotifycharts.com/regional/global/daily/2020-04-06/download", 
     col_types = cols(Position = col_integer(), 
         Streams = col_integer()), skip = 1)
-View(download)
+head(download)
 
 # Examples
 # ========
@@ -39,7 +39,26 @@ View(download)
 
 # Write a function
 ```{r}
+getcharts <- function(country)
+{
+  url<- paste0("https://spotifycharts.com/regional/", country, "/daily/2020-04-05/download")
+  print(paste0("Daten werden bezogen: ",url))
+  df <- read_csv(url, col_types = cols(Position = col_integer(), Streams = col_integer()), skip = 1)
+  df<- df%>%
+    mutate(country = country)
+  return(df)
+  }
+returndownload<-getcharts("de")
 
 ```
 
+# Map the function
+```{r}
+library(purrr)
+countrylist<-c("de","fr","gb","us")
+mappeddownload<-countrylist%>%
+  map(getcharts)%>%
+  bind_rows()
+mappeddownload[199:202, ]
+```
 
