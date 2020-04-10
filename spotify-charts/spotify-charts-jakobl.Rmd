@@ -1,0 +1,102 @@
+---
+title: "Spotify-charts"
+author: "Jakob Liebmann"
+date: "9 April 2020"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    df_print: paged
+    code_folding: show  
+    theme: united
+    highlight: tango
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = TRUE,
+	message = FALSE,
+	warning = FALSE
+)
+```
+
+# Getting data
+```{r}
+library(tidyverse)
+# Testing one download
+download <- read_csv("https://spotifycharts.com/regional/global/daily/2020-04-06/download", 
+    col_types = cols(Position = col_integer(), 
+        Streams = col_integer()), skip = 1)
+head(download)
+
+# Examples
+# ========
+# https://spotifycharts.com/regional/global/daily/2020-04-06/download
+# https://spotifycharts.com/regional/de/weekly/2020-03-20--2020-03-27/download
+
+```
+
+# Write a function
+```{r}
+getcharts <- function(country, date = "2020-04-05")
+{
+  url<- paste0("https://spotifycharts.com/regional/", country, "/daily/", date, "/download")
+  print(paste0("Daten werden bezogen: ",url))
+  df <- read_csv(url, col_types = cols(Position = col_integer(), Streams = col_integer()), skip = 1)
+  df<- df%>%
+    mutate(country = country, date = date)
+  return(df)
+  }
+returndownload<-getcharts("de")
+
+```
+
+# Map the function
+```{r}
+library(purrr)
+countrylist<-c("de","fr","gb","us")
+mappeddownload<-countrylist%>%
+  map(getcharts)%>%
+  bind_rows()
+mappeddownload[199:202, ]
+```
+
+# For loop
+```{r}
+loopeddownload <- tibble()
+for (country in countrylist) {
+  print(paste0("Getting data for: ",country))
+  ifelse(length(loopeddownload)==0,
+          loopeddownload<-getcharts(country),
+          loopeddownload<-loopeddownload %>% add_row(getcharts(country)))
+}
+
+# Comment: the loop is more intuitive, the mapping easier to implement
+```
+
+# Multiple loops
+```{r}
+library(lubridate)
+datelist <- seq.Date(from = as.Date("2020/1/30"), to = as.Date("2020/2/1"), by = "day")
+multipledownload<-tibble()
+for (country in 1:length(countrylist)){
+  for (date in 1:length(datelist)){
+    print(paste0("getting data from country:  ", countrylist[country], "  from date:  ", datelist[date]))
+    ifelse(
+          length(multipledownload)==0,
+          multipledownload<-getcharts(countrylist[country], datelist[date]),
+          multipledownload<-multipledownload%>%add_row(getcharts(countrylist[country], datelist[date]))
+          )
+    
+    }
+  }
+
+```
+
+# Map Approach
+```{r}
+countrydate<-expand.grid(country=countrylist, date=datelist)
+multipledownload <- map2_df(countrydate$country, countrydate$date, getcharts)
+```
+
