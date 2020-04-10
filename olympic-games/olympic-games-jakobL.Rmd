@@ -17,18 +17,43 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Read in the participants.txt
 
+```{r}
+library(tidyverse)
+participants <- read_csv("participants.csv")
+```
+
 # Understand the data
 -	Print the first 5 observations
 -	How many rows and columns does the data set have?
 -	Display the variable types 
 
+```{r}
+head(participants, 5)
+nrow(participants)
+ncol(participants)
+str(participants)
+```
+
+
 # Counting participants
 -	Display the 10 countries with the highest number of participants.
 -	Calculate the number of participants from Germany, including West Germany and East Germany. 
 
+```{r}
+participants%>%
+  group_by(country)%>%
+  summarise(athletes=n_distinct(athlete))%>%
+  arrange(desc(athletes))%>%
+  head(10)
+
+participants%>%
+  filter(str_detect(country, "Germany"))%>%
+  summarise(n_distinct(athlete))
+```
+
+
 # Body mass index
--	Add a column bmi that contains the athlete's body mass index. The body mass index is defined as weight / height^2 measured in kilogram / meter^2 
--	Calculate the minimum, average, and maximum BMI
+-	Add a column bmi that contains the athlete's body mass index. The body mass index is defined as weight / height^2 measured in kilogram / meter^2 -	Calculate the minimum, average, and maximum BMI
 -	How many participants of the sport Rhythmic Gymnastics are at least severely underweight? Use the BMI table below to answer this question.
 -	What percentage of the participants of the sport Weightlifting are at least severely obese? Use the BMI table below to answer this question.
 
@@ -46,10 +71,48 @@ knitr::opts_chunk$set(echo = TRUE)
 | Obese Class V   (Super obese)           | 50           | 60         |
 | Obese   Class VI (Hyper obese)          | 60           |            |
 
+```{r}
+participants<-participants%>%
+  mutate(bmi = weight/(height/100)^2)
+
+participants%>%
+  distinct(game, athlete, .keep_all = T)%>%
+  summarise(min(bmi, na.rm = T), mean(bmi, na.rm = T), max(bmi, na.rm = T))
+
+participants%>%
+  filter(bmi < 10 | bmi > 60)
+
+participants%>%
+  distinct(athlete, .keep_all = T)%>%
+  filter(sport=="Rhythmic Gymnastics", bmi<16)%>%
+  summarise(n())
+
+all_athletes<-as.integer(participants%>%
+  distinct(athlete, .keep_all = T)%>%
+  filter(sport=="Weightlifting")%>%
+  summarise(n()))
+
+severely_obese<-as.integer(participants%>%
+  distinct(athlete, .keep_all = T)%>%
+  filter(sport=="Weightlifting", bmi>=35)%>%
+  summarise(n()))
+
+print(severely_obese/all_athletes*100)
+```
 
 # Joining data
 -	Read in athletes.xlsx and medallists.txt
 -	Join participants, athletes, and medalists into one large data frame. Make the join in such a way that we do not lose information contained in the participants data. 
+
+```{r}
+athletes<- readxl::read_excel("athletes.xlsx")
+medallists <- read_delim("medallists.txt", ";")
+df <- participants%>%
+  left_join(athletes, by = "athlete")
+df<-df%>%
+  left_join(medallists, by = c("game", "discipline", "athlete"))
+```
+
 
 # Medal table	
 -	Create the all-time Olympic Games medal table and display the first 10 entries. Medal tables are sorted from best to worst (sort first the number of golds, then silver, then bronze). The table should have the following columns. 
@@ -62,14 +125,114 @@ knitr::opts_chunk$set(echo = TRUE)
 |athlete | country | Gold | Silver | Bronze |
 |--------|---------|------|--------|--------|
 
+```{r}
+country_medal_table <- df%>%
+  group_by(country, medal)%>%
+  summarise(amount=n())%>%
+  pivot_wider(names_from = medal, values_from = amount)%>%
+  mutate(`NA`=NULL)%>%
+  drop_na()%>%
+  arrange(-Gold, -Silver, -Bronze)
+
+country_medal_table%>%
+  select(country, Gold, Silver, Bronze)%>%
+  head(10)
+
+athlete_medal_table <- df%>%
+  group_by(athlete, medal, country)%>%
+  summarise(amount=n())%>%
+  pivot_wider(names_from = medal, values_from = amount)%>%
+  mutate(`NA`=NULL)%>%
+  drop_na()%>%
+  arrange(-Gold, -Silver, -Bronze)
+
+athlete_medal_table%>%
+  select(athlete, country, Gold, Silver, Bronze)%>%
+  head(10)
+```
+
+
 # Athlete’s age
 -	Display the youngest and the oldest participant together with information on the Olympic games and the sports and disciplines at which they participated.
 -	Calculate the minimum, average, and maximum age of medal winners per sport. Display the 5 sports with the highest and lowest average ages, respectively.
+
+```{r}
+df%>%
+  filter(!str_detect(age, "-"))%>%
+  filter(age==min(age)|age==max(age))%>%
+  select(game, sport, discipline, athlete, age, country)
+
+df$age<-as.numeric(df$age)
+
+df%>%
+  filter(!is.na(medal), !str_detect(age, "-"))%>%
+  summarise(min(age), mean(age), max(age))
+
+df%>%
+  group_by(sport)%>%
+  summarise("Avg. age"=mean(age, na.rm = T))%>%
+  arrange(desc(`Avg. age`))%>%
+  head(5)
+
+df%>%
+  group_by(sport)%>%
+  summarise("Avg. age"=mean(age, na.rm = T))%>%
+  arrange(`Avg. age`)%>%
+  head(5)  
+```
+
 
 # Athlete’s sex
 -	Create a table that shows for each sport the proportions of men and women among the gold medal winners
 -	In the history of Olympic games, which sports have been exclusively reserved for men and women, respectively.
 
+```{r}
+df%>%
+  filter(medal=="Gold")%>%
+  group_by(sport)%>%
+  summarise(males=sum(sex=="M"), females=sum(sex=="F"), females/males)
+
+df%>%
+  group_by(sport)%>%
+  summarise(males=sum(sex=="M"), females=sum(sex=="F"))%>%
+  filter(males == 0 | females == 0)
+```
+
+
 # Special athletes
 -	Display all athletes that have won a gold medal both at summer and winter Olympic games.
+
+```{r}
+#original
+#========
+df_special<-df
+df_special$game <-df_special$game%>%
+  str_replace("\\d\\d\\d\\d Summer", "summer")%>%
+  str_replace("\\d\\d\\d\\d Winter", "winter")
+
+df_special%>%  
+  filter(medal=="Gold")%>%
+  select(game, athlete)%>%
+  pivot_wider(names_from = game, values_from = game)%>%
+  drop_na()
+
+#alternative 1
+#=============
+df%>%
+  mutate(game = str_replace(game, "\\d\\d\\d\\d Summer", "summer"))%>%
+  mutate(game = str_replace(game, "\\d\\d\\d\\d Winter", "winter"))%>%
+  filter(medal=="Gold")%>%
+  select(game, athlete)%>%
+  pivot_wider(names_from = game, values_from = 1)%>%
+  drop_na()
+
+#alternative 2
+#=============
+df%>%
+  separate(game, into=c("year", "season"), sep = " ")%>%
+  filter(medal=="Gold")%>%
+  select(season, athlete)%>%
+  pivot_wider(names_from = season, values_from = 1)%>%
+  drop_na()
+```
 
