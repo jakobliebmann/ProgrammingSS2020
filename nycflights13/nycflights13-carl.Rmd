@@ -21,20 +21,53 @@ library(tidyverse)
 Then, we need to install the package `nycflights13`. The package contains the following five datasets: _airlines_, _airports_, _planes_, _weather_, and _flights_. For explanations on the data use `help(airlines)`, `help(airports)`, etc. To make the data visible in the global environment we need to assign them to some variable.
 
 ```{r}
-airlines <- nycflights::airlines 
-airports <- nycflights::airports
-planes <- nycflights::planes
-weather <- nycflights::weather
+if (!("nycflights13" %in% installed.packages()[,1])) {
+  install.packages("nycflights13")
+}
+```
+
+```{r}
+airlines <- nycflights13::airlines 
+airports <- nycflights13::airports
+planes <- nycflights13::planes
+weather <- nycflights13::weather
 flights <- nycflights13::flights
 ```
 
 # Analyse data
+```{r}
+inspect <- function(object){
+  # Print hte dimensions of the current object
+  dimensions <- paste0(dim(object), collapse="-by-")
+  print(paste0("Object has dimensions(rows-by-columns) of: ", dimensions))
+  
+  # Get the name and the mode (i.e. data type) of each column
+  name_mode = c(Column=NA, Mode=NA)
+
+  for (name in names(object)){
+    # Extract the corresponding column
+    # object[[name]] is used to obtain a vector and avoid preservation of the structure.
+    curr_column <- object[[name]]
+    # append the new pair of name and mode at the end of `name_mode`
+    name_mode <- bind_rows(name_mode, 
+                           c(Column=name, 
+                             Mode=mode(curr_column)))
+  }
+  name_mode[-1,]
+}
+```
 ## Airlines
 - Inspect the airlines data and print the first 5 rows.
+```{r}
+airlines %>% inspect()
 
+```
 
 ## Airports 
-- Inspect the airports data and print the first rows. 
+- Inspect the airports data and print the first rows.
+```{r}
+airports %>% inspect()
+```
 - The variabe `alt` represents the airport's altitude in feet. Replace `alt` by the corresponding altitude in meters (meter = feet * 3.28084). Then filter for the 5 airports with the highest altitude
 - Filter for all airports which are located at an altitude lower than sea level
 
