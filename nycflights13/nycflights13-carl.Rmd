@@ -60,6 +60,7 @@ inspect <- function(object){
 - Inspect the airlines data and print the first 5 rows.
 ```{r}
 airlines %>% inspect()
+airlines %>% head()
 
 ```
 
@@ -67,18 +68,55 @@ airlines %>% inspect()
 - Inspect the airports data and print the first rows.
 ```{r}
 airports %>% inspect()
+airports %>% head()
 ```
 - The variabe `alt` represents the airport's altitude in feet. Replace `alt` by the corresponding altitude in meters (meter = feet * 3.28084). Then filter for the 5 airports with the highest altitude
+```{r}
+airports <- airports %>% 
+  mutate(`alt[m]` = alt * 3.28084) %>%
+  # drop the old `alt` column
+  select(-alt) %>%
+  # change the order of the columns to put `alt[m]` in the place of the former `alt`.
+  select(faa, name, lat, lon, `alt[m]`, everything())
+# Use `arrange()` to sort `airports` by `alt` in descending order
+airports %>% arrange(-`alt[m]`) %>% head(5)
+``` 
 - Filter for all airports which are located at an altitude lower than sea level
+```{r}
+airports %>% 
+  filter(`alt[m]`<0)
+```
+
 
 ## Weather
 - Inspect the data and print the first rows. 
+```{r}
+weather %>% inspect()
+```
+
 - Does the data only cover New York or also the weather at destination airports? 
+```{r}
+weather %>%
+  # add the full name as given in `name` in `airports`
+  left_join(airports, by=c("origin"="faa")) %>% 
+  select(origin, name) %>% 
+  unique()
+```
+
 - Change the units to European standards:  
   * Temperature (`temp`) and dew point (`dewp`): Celsius = (Fahrenheit - 32) * 5 / 9 
   * Visibility (`visib`): kilometer = miles / 1.60934
   * Wind speed (`wind_speed`): kilometer/hour = (miles/hour) /1.60934
   * Precipitation (`precip`): millimeter = inches * 20.54
+```{r}
+weather <- weather %>% 
+  mutate(temp=(temp - 32) * 5 / 9, 
+         dewp=(dewp - 32) * 5 / 9,
+         visib=visib / 1.60934,
+         wind_speed=wind_speed / 1.60934,
+         precip=precip * 20.54)
+```
+  
 - What was the 2013 average of `temp`, `wind_speed`, and `visib` at the JFK airport?
 - What was the *monthly* average of `temp`, `wind_speed`, and `visib` at the JFK airport?
 - What was the minimum `temp`, the maximum `temp`, and the total amount of `precip` at each of the 3 airports in December 2013? 
