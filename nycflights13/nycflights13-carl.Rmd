@@ -48,7 +48,7 @@ inspect <- function(object){
     # Extract the corresponding column
     # object[[name]] is used to obtain a vector and avoid preservation of the structure.
     curr_column <- object[[name]]
-    # append the new pair of name and mode at the end of `name_mode`
+    # Append the new pair of name and mode at the end of `name_mode`
     name_mode <- bind_rows(name_mode, 
                            c(Column=name, 
                              Mode=mode(curr_column)))
@@ -73,11 +73,8 @@ airports %>% head()
 - The variabe `alt` represents the airport's altitude in feet. Replace `alt` by the corresponding altitude in meters (meter = feet * 3.28084). Then filter for the 5 airports with the highest altitude
 ```{r}
 airports <- airports %>% 
-  mutate(`alt[m]` = alt * 3.28084) %>%
-  # drop the old `alt` column
-  select(-alt) %>%
-  # change the order of the columns to put `alt[m]` in the place of the former `alt`.
-  select(faa, name, lat, lon, `alt[m]`, everything())
+  mutate(alt = alt * 3.28084) %>%
+  rename(`alt[m]` = alt)
 # Use `arrange()` to sort `airports` by `alt` in descending order
 airports %>% arrange(-`alt[m]`) %>% head(5)
 ``` 
@@ -97,7 +94,7 @@ weather %>% inspect()
 - Does the data only cover New York or also the weather at destination airports? 
 ```{r}
 weather %>%
-  # add the full name as given in `name` in `airports`
+  # Add the full name as given in `name` in `airports`
   left_join(airports, by=c("origin"="faa")) %>% 
   select(origin, name) %>% 
   unique()
@@ -176,22 +173,63 @@ planes %>%
 planes %>% 
   group_by(manufacturer) %>% 
   summarise(number_planes = n(),
-            avg_seats = sum(seats)/number_planes,
-            avg_engines = sum(engines)/number_planes,
-            avg_year = sum(year, na.rm=TRUE)/number_planes) %>% 
+            avg_seats = mean(seats),
+            avg_engines = mean(engines),
+            avg_year = mean(year, na.rm=TRUE)) %>% 
   arrange(-number_planes)
 ```
 
 
 ## Flights
 - Inspect the flights data and print the first 5 rows.
+```{r}
+flights %>% inspect()
+flights %>% head(5)
+```
+
 - Count the total number of flights and the average delay during the whole year per `hour` of departure.
-- Count the number of flights by destionation airport (`dest`) and arrange them in descending order.
+```{r}
+flights %>%
+  summarise(n = n(),
+            avg_delay = mean(dep_delay, na.rm=TRUE))
+```
+
+- Count the number of flights by destination airport (`dest`) and arrange them in descending order.
+```{r}
+flights %>% 
+  count(dest) %>% 
+  # Left-join with `airports` to get the full name
+  left_join(airports %>% select(faa, name), by=c("dest"="faa")) %>% 
+  # Change the order of the columns  
+  select(dest, name, n) %>% 
+  arrange(-n)
+```
+
 
 # Join datasets 
 Join the five data sets into one large data set. To better understand the relationship between them, study the file _img/table_realtionships.PNG_ (or alternatively knit this Rmd file.) 
 
 ![](img/table_relationships.PNG){width=70%}
+```{r}
+# left_join() returns all rows from x, and all columns from x and y. 
+# Rows in x with no match in y will have NA values in the new columns.
+
+larger_dataset <- flights %>% 
+  # As the joining fields have the same name in either tibble they can be simply named
+  left_join(weather, by=c("year","month", "day", "hour", "origin","time_hour")) %>% 
+  
+  left_join(airlines, by=c("carrier")) %>% 
+  
+  # Rename `year` in `planes` tibble prior to joining
+  left_join(planes %>% rename(manufacturing_year = year), by=c("tailnum")) %>%
+  
+  # The Joining field is called `dest` in `flights` and `faa` in `airports`.
+  left_join(airports, by=c("dest"="faa"), suffix=c("", "_dest")) %>% 
+  
+  # The Joining field is called `origin` in `flights` and `faa` in `airports`.
+  # Rename `name` in `airports` tibble prior to joining. Using suffix won't work for this field
+  left_join(airports %>% rename(name_origin = name), by=c("origin"="faa"), suffix=c("_dest", "_origin"))
+```
 
 
 # Freely explore
