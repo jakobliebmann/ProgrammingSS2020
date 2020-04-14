@@ -113,18 +113,75 @@ weather <- weather %>%
   mutate(temp=(temp - 32) * 5 / 9, 
          dewp=(dewp - 32) * 5 / 9,
          visib=visib / 1.60934,
-         wind_speed=wind_speed / 1.60934,
+         wind_speed=wind_speed / 1.60934, # 1km/h = 1000/3600 m/s ≈ 1/3.6 * 1.94kn ≈ 0.54kn
          precip=precip * 20.54)
 ```
   
 - What was the 2013 average of `temp`, `wind_speed`, and `visib` at the JFK airport?
+```{r}
+weather %>% 
+  filter(origin=="JFK", year==2013) %>% 
+  # Note that `na.rm=TRUE` is given as part of the ellipsis, which is passed unchanedly to the mean() function
+  summarise_at(vars(temp, wind_speed, visib), mean, na.rm=TRUE)
+```
+
 - What was the *monthly* average of `temp`, `wind_speed`, and `visib` at the JFK airport?
+```{r}
+weather %>% 
+  filter(origin=="JFK", year==2013) %>% 
+  group_by(month) %>% 
+  # Note that `na.rm=TRUE` is given as part of the ellipsis, which is passed unchanedly to the mean() function
+  summarise_at(vars(temp, wind_speed, visib), mean, na.rm=TRUE) %>% 
+  ungroup()
+```
+
 - What was the minimum `temp`, the maximum `temp`, and the total amount of `precip` at each of the 3 airports in December 2013? 
+```{r}
+weather %>% 
+  filter(year==2013, month==12) %>% 
+  group_by(origin) %>% 
+  summarise(T_mn = min(temp), T_mx = max(temp), P_tot = sum(precip)) %>% 
+  ungroup()
+```
+
 
 ## Planes
 - Inspect the planes data and print the first 5 rows.
-- Count the numer of planes per `manufacturer` and sort in descending order? 
+```{r}
+planes %>% inspect()
+planes %>% head(5)
+```
+
+- Count the number of planes per `manufacturer` and sort in descending order? 
+```{r}
+planes %>% 
+  group_by(manufacturer) %>%
+  # Count the observations per group
+  summarise(n = n()) %>% 
+  ungroup() %>% 
+  arrange(-n)
+
+## OR ##
+
+# count() is a convenient wrapper for summarise that will [...] call n(); 
+# but [also] calls group_by() before and ungroup() after.
+planes %>% 
+  count(manufacturer) %>% 
+  arrange(-n)
+
+```
+
 - Calculate per manufacturer: 1. number of planes, 2. average number of `seats`, 3. average number of `engines`, 4. average `year` when the planes where manufactured. And again order in descending order of the number of planes
+```{r}
+planes %>% 
+  group_by(manufacturer) %>% 
+  summarise(number_planes = n(),
+            avg_seats = sum(seats)/number_planes,
+            avg_engines = sum(engines)/number_planes,
+            avg_year = sum(year, na.rm=TRUE)/number_planes) %>% 
+  arrange(-number_planes)
+```
+
 
 ## Flights
 - Inspect the flights data and print the first 5 rows.
