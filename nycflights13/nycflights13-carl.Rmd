@@ -21,49 +21,227 @@ library(tidyverse)
 Then, we need to install the package `nycflights13`. The package contains the following five datasets: _airlines_, _airports_, _planes_, _weather_, and _flights_. For explanations on the data use `help(airlines)`, `help(airports)`, etc. To make the data visible in the global environment we need to assign them to some variable.
 
 ```{r}
-airlines <- nycflights::airlines 
-airports <- nycflights::airports
-planes <- nycflights::planes
-weather <- nycflights::weather
+if (!("nycflights13" %in% installed.packages()[,1])) {
+  install.packages("nycflights13")
+}
+```
+
+```{r}
+airlines <- nycflights13::airlines 
+airports <- nycflights13::airports
+planes <- nycflights13::planes
+weather <- nycflights13::weather
 flights <- nycflights13::flights
 ```
 
 # Analyse data
+```{r}
+inspect <- function(object){
+  # Print hte dimensions of the current object
+  dimensions <- paste0(dim(object), collapse="-by-")
+  print(paste0("Object has dimensions(rows-by-columns) of: ", dimensions))
+  
+  # Get the name and the mode (i.e. data type) of each column
+  name_mode = c(Column=NA, Mode=NA)
+
+  for (name in names(object)){
+    # Extract the corresponding column
+    # object[[name]] is used to obtain a vector and avoid preservation of the structure.
+    curr_column <- object[[name]]
+    # Append the new pair of name and mode at the end of `name_mode`
+    name_mode <- bind_rows(name_mode, 
+                           c(Column=name, 
+                             Mode=mode(curr_column)))
+  }
+  name_mode[-1,]
+}
+```
+
+Alternative definition of `inspect` function which avoids row binding of data frames within a loop (which is not performant if the loop has many iterations)
+
+```{r}
+inspect2 <- function(object){
+  # Note: map_chr and enframe are both functions of core tidyverse (purrr::map_chr, tibble:enframe)
+  map_chr(object, mode) %>% enframe(name = "Column", value = "Mode")   
+}
+```
+
+
 ## Airlines
 - Inspect the airlines data and print the first 5 rows.
+```{r}
+airlines %>% inspect()
+airlines %>% inspect2() # Should do the same as inspect()
+airlines %>% head()
 
+```
 
 ## Airports 
-- Inspect the airports data and print the first rows. 
+- Inspect the airports data and print the first rows.
+```{r}
+airports %>% inspect()
+airports %>% head()
+```
 - The variabe `alt` represents the airport's altitude in feet. Replace `alt` by the corresponding altitude in meters (meter = feet * 3.28084). Then filter for the 5 airports with the highest altitude
+```{r}
+airports <- airports %>% 
+  mutate(alt = alt * 3.28084) %>%
+  rename(`alt[m]` = alt)
+# Use `arrange()` to sort `airports` by `alt` in descending order
+airports %>% arrange(-`alt[m]`) %>% head(5)
+``` 
 - Filter for all airports which are located at an altitude lower than sea level
+```{r}
+airports %>% 
+  filter(`alt[m]`<0)
+```
+
 
 ## Weather
 - Inspect the data and print the first rows. 
+```{r}
+weather %>% inspect()
+```
+
 - Does the data only cover New York or also the weather at destination airports? 
+```{r}
+weather %>%
+  # Add the full name as given in `name` in `airports`
+  left_join(airports, by=c("origin"="faa")) %>% 
+  select(origin, name) %>% 
+  unique()
+```
+
 - Change the units to European standards:  
   * Temperature (`temp`) and dew point (`dewp`): Celsius = (Fahrenheit - 32) * 5 / 9 
   * Visibility (`visib`): kilometer = miles / 1.60934
   * Wind speed (`wind_speed`): kilometer/hour = (miles/hour) /1.60934
   * Precipitation (`precip`): millimeter = inches * 20.54
+```{r}
+weather <- weather %>% 
+  mutate(temp=(temp - 32) * 5 / 9, 
+         dewp=(dewp - 32) * 5 / 9,
+         visib=visib / 1.60934,
+         wind_speed=wind_speed / 1.60934, # 1km/h = 1000/3600 m/s ≈ 1/3.6 * 1.94kn ≈ 0.54kn
+         precip=precip * 20.54)
+```
+  
 - What was the 2013 average of `temp`, `wind_speed`, and `visib` at the JFK airport?
+```{r}
+weather %>% 
+  filter(origin=="JFK", year==2013) %>% 
+  # Note that `na.rm=TRUE` is given as part of the ellipsis, which is passed unchanedly to the mean() function
+  summarise_at(vars(temp, wind_speed, visib), mean, na.rm=TRUE)
+```
+
 - What was the *monthly* average of `temp`, `wind_speed`, and `visib` at the JFK airport?
+```{r}
+weather %>% 
+  filter(origin=="JFK", year==2013) %>% 
+  group_by(month) %>% 
+  # Note that `na.rm=TRUE` is given as part of the ellipsis, which is passed unchanedly to the mean() function
+  summarise_at(vars(temp, wind_speed, visib), mean, na.rm=TRUE) %>% 
+  ungroup()
+```
+
 - What was the minimum `temp`, the maximum `temp`, and the total amount of `precip` at each of the 3 airports in December 2013? 
+```{r}
+weather %>% 
+  filter(year==2013, month==12) %>% 
+  group_by(origin) %>% 
+  summarise(T_mn = min(temp), T_mx = max(temp), P_tot = sum(precip)) %>% 
+  ungroup()
+```
+
 
 ## Planes
 - Inspect the planes data and print the first 5 rows.
-- Count the numer of planes per `manufacturer` and sort in descending order? 
+```{r}
+planes %>% inspect()
+planes %>% head(5)
+```
+
+- Count the number of planes per `manufacturer` and sort in descending order? 
+```{r}
+planes %>% 
+  group_by(manufacturer) %>%
+  # Count the observations per group
+  summarise(n = n()) %>% 
+  ungroup() %>% 
+  arrange(-n)
+
+## OR ##
+
+# count() is a convenient wrapper for summarise that will [...] call n(); 
+# but [also] calls group_by() before and ungroup() after.
+planes %>% 
+  count(manufacturer) %>% 
+  arrange(-n)
+
+```
+
 - Calculate per manufacturer: 1. number of planes, 2. average number of `seats`, 3. average number of `engines`, 4. average `year` when the planes where manufactured. And again order in descending order of the number of planes
+```{r}
+planes %>% 
+  group_by(manufacturer) %>% 
+  summarise(number_planes = n(),
+            avg_seats = mean(seats),
+            avg_engines = mean(engines),
+            avg_year = mean(year, na.rm=TRUE)) %>% 
+  arrange(-number_planes)
+```
+
 
 ## Flights
 - Inspect the flights data and print the first 5 rows.
+```{r}
+flights %>% inspect()
+flights %>% head(5)
+```
+
 - Count the total number of flights and the average delay during the whole year per `hour` of departure.
-- Count the number of flights by destionation airport (`dest`) and arrange them in descending order.
+```{r}
+flights %>%
+  summarise(n = n(),
+            avg_delay = mean(dep_delay, na.rm=TRUE))
+```
+
+- Count the number of flights by destination airport (`dest`) and arrange them in descending order.
+```{r}
+flights %>% 
+  count(dest) %>% 
+  # Left-join with `airports` to get the full name
+  left_join(airports %>% select(faa, name), by=c("dest"="faa")) %>% 
+  # Change the order of the columns  
+  select(dest, name, n) %>% 
+  arrange(-n)
+```
+
 
 # Join datasets 
 Join the five data sets into one large data set. To better understand the relationship between them, study the file _img/table_realtionships.PNG_ (or alternatively knit this Rmd file.) 
 
 ![](img/table_relationships.PNG){width=70%}
+```{r}
+# left_join() returns all rows from x, and all columns from x and y. 
+# Rows in x with no match in y will have NA values in the new columns.
+
+larger_dataset <- flights %>% 
+  # As the joining fields have the same name in either tibble they can be simply named
+  left_join(weather, by=c("year","month", "day", "hour", "origin","time_hour")) %>% 
+  
+  left_join(airlines, by=c("carrier")) %>% 
+  
+  # Rename `year` in `planes` tibble prior to joining
+  left_join(planes %>% rename(manufacturing_year = year), by=c("tailnum")) %>%
+  
+  # The Joining field is called `dest` in `flights` and `faa` in `airports`.
+  left_join(airports, by=c("dest"="faa"), suffix=c("", "_dest")) %>% 
+  
+  # The Joining field is called `origin` in `flights` and `faa` in `airports`.
+  # Rename `name` in `airports` tibble prior to joining. Using suffix won't work for this field
+  left_join(airports %>% rename(name_origin = name), by=c("origin"="faa"), suffix=c("_dest", "_origin"))
+```
 
 
 # Freely explore
