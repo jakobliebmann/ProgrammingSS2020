@@ -56,10 +56,22 @@ inspect <- function(object){
   name_mode[-1,]
 }
 ```
+
+Alternative definition of `inspect` function which avoids row binding of data frames within a loop (which is not performant if the loop has many iterations)
+
+```{r}
+inspect2 <- function(object){
+  # Note: map_chr and enframe are both functions of core tidyverse (purrr::map_chr, tibble:enframe)
+  map_chr(object, mode) %>% enframe(name = "Column", value = "Mode")   
+}
+```
+
+
 ## Airlines
 - Inspect the airlines data and print the first 5 rows.
 ```{r}
 airlines %>% inspect()
+airlines %>% inspect2() # Should do the same as inspect()
 airlines %>% head()
 
 ```
